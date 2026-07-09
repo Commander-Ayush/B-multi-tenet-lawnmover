@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  backend:
+    image: ghcr.io/commander-ayush/b-multi-tenet-lawnmover:latest
+    container_name: lawnmovers-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    env_file:
+      - .env
