@@ -23,7 +23,7 @@ public class ServiceCatalogService {
     @Autowired private CompanyRepo companyRepo;
     @Autowired private PublicTenantResolver tenantResolver;
 
-    // ───────────────────────── PUBLIC (storefront) ─────────────────────────
+    // ───────────────────────── PUBLIC (storefront) ───────────────────────── //
 
     public List<ServiceDto> getServices(String origin) {
         return fetchOrSeed(tenantResolver.resolve(origin), "service").stream().map(ServiceDto::from).toList();

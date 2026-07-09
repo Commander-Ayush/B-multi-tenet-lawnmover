@@ -33,7 +33,7 @@ public class DataInitializer implements ApplicationRunner {
     @Autowired private AdminUserRepository adminUserRepo;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    private static final String DEV_DOMAIN = "localhost:5500";
+    private static final String DEV_DOMAIN = "127.0.0.1:5500";
     private static final String DEV_ADMIN_EMAIL = "admin@demo.local";
     private static final String DEV_ADMIN_PASSWORD = "ChangeMe123!"; // dev only — change immediately for any real use
 

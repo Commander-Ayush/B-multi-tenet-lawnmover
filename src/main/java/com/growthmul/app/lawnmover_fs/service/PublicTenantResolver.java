@@ -30,7 +30,17 @@ public class PublicTenantResolver {
                 .replaceFirst("^www\\.", "")
                 .replaceFirst("/$", "");
 
-        return companyRepo.findByDomain(domain)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown business"));
+        System.out.println("Origin = '" + origin + "'");
+        System.out.println("Domain = '" + domain + "'");
+
+        Company company = companyRepo.findByDomain(domain).orElse(null);
+
+        System.out.println("Company = " + company);
+
+        if (company == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown business");
+        }
+
+        return company;
     }
 }

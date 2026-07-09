@@ -17,6 +17,7 @@ public class ReviewController {
 
     @GetMapping
     public List<ReviewDto> getApproved(@RequestHeader(value = "Origin", required = false) String origin) {
+        System.out.println(origin);
         return reviewService.getApprovedReviews(origin);
     }
 
