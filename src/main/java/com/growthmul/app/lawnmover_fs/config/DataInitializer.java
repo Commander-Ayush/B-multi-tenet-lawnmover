@@ -50,13 +50,13 @@ public class DataInitializer implements ApplicationRunner {
         demo.setPhone(8004736288L);
         demo.setEmail("hello@greencut.com");
         demo.setDomain(DEV_DOMAIN);
-        companyRepo.save(demo);
+//        companyRepo.save(demo);
 
         AdminUser admin = new AdminUser();
         admin.setEmail(DEV_ADMIN_EMAIL);
         admin.setPasswordHash(passwordEncoder.encode(DEV_ADMIN_PASSWORD));
         admin.setCompany(demo);
-        adminUserRepo.save(admin);
+//        adminUserRepo.save(admin);
 
         System.out.println("─────────────────────────────────────────────────────");
         System.out.println(" Seeded a demo company for local dev:");
