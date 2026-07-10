@@ -2,6 +2,8 @@ package com.growthmul.app.lawnmover_fs.dto;
 
 import com.growthmul.app.lawnmover_fs.entity.Company;
 
+import java.time.Year;
+
 public class CompanyDto {
     private String name;
     private String city;
@@ -17,7 +19,7 @@ public class CompanyDto {
         dto.city = c.getCity();
         dto.foundedYear = c.getFoundedYear();
         dto.yardsServed = c.getYardsServed();
-        dto.yearsExperience = c.getYearsExperience();
+        dto.yearsExperience = Year.now().getValue() - c.getFoundedYear();
         dto.phone = c.getPhone();
         dto.email = c.getEmail();
         return dto;
