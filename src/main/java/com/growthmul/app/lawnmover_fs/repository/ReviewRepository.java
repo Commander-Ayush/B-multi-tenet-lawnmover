@@ -7,10 +7,9 @@ import java.util.List;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
-    // Public storefront — only approved reviews, newest first
+
     List<Review> findByCompanyIdAndApprovedTrueOrderBySubmittedAtDesc(Long companyId);
 
-    // Admin panel — ALL reviews (pending + approved), newest first
     List<Review> findByCompanyIdOrderBySubmittedAtDesc(Long companyId);
 
     long countByCompanyIdAndApprovedFalse(Long companyId);

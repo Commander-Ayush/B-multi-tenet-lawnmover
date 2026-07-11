@@ -15,18 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Pure stateless JSON API now — no cookies, no session, no Thymeleaf pages
- * to permit, so no CSRF protection needed (CSRF only matters when the
- * browser sends ambient credentials like cookies automatically; a Bearer
- * token in an Authorization header has to be deliberately attached by our
- * own frontend JS, so there's nothing for a forged cross-site request to
- * piggyback on).
- *
- * Public storefront routes are wide open (resolved per-request by Origin,
- * see PublicTenantResolver) — /admin/** requires a valid JWT, checked by
- * JwtAuthFilter below.
- */
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {

@@ -2,6 +2,7 @@ package com.growthmul.app.lawnmover_fs.controller;
 
 import com.growthmul.app.lawnmover_fs.dto.ReviewDto;
 import com.growthmul.app.lawnmover_fs.dto.ReviewSubmitRequest;
+import com.growthmul.app.lawnmover_fs.repository.CompanyRepo;
 import com.growthmul.app.lawnmover_fs.service.ReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,10 +15,11 @@ import java.util.List;
 public class ReviewController {
 
     @Autowired private ReviewService reviewService;
+    @Autowired
+    private CompanyRepo companyRepo;
 
     @GetMapping
     public List<ReviewDto> getApproved(@RequestHeader(value = "Origin", required = false) String origin) {
-        System.out.println(origin);
         return reviewService.getApprovedReviews(origin);
     }
 

@@ -11,14 +11,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-/**
- * Issues and validates the admin-login JWT. The token carries exactly one
- * piece of business data — companyId — which is what every /admin/** route
- * uses to scope itself, instead of trusting anything the client sends.
- *
- * app.jwt.secret must be at least 32 characters (HS256 needs a >=256-bit
- * key) — set it via the JWT_SECRET env var, there's no insecure default.
- */
+
 @Component
 public class JwtService {
 

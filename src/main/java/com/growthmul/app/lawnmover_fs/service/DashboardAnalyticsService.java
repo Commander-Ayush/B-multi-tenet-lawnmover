@@ -28,10 +28,7 @@ public class DashboardAnalyticsService {
     @Autowired private ServiceRepository serviceRepo;
     @Autowired private ReviewRepository reviewRepo;
 
-    // Prices are free-text ("Starting at $45 / visit", "$139") since admins
-    // type them in as a display string, not a clean number. This pulls the
-    // first dollar figure out of that string for revenue math. A price with
-    // no parseable "$NN" in it just contributes 0 — better than crashing.
+    // Prices are free-text ("Starting at $45 / visit", "$139") since admins type them in as a display string, not a clean number.
     private static final Pattern PRICE_PATTERN = Pattern.compile("\\$([0-9]+(?:\\.[0-9]{1,2})?)");
 
     private double priceFor(BookingRequest r) {

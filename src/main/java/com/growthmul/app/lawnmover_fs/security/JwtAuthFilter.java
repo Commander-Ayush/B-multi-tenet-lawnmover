@@ -14,14 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Runs on every request. If a valid "Authorization: Bearer <jwt>" header is
- * present, populates the security context with an AdminPrincipal carrying
- * companyId — that's the ONLY way companyId enters an /admin/** request.
- * No token, or an invalid one, just means the request continues
- * unauthenticated — SecurityConfig's authorizeHttpRequests rules are what
- * actually reject it with 401 for protected routes.
- */
+
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 

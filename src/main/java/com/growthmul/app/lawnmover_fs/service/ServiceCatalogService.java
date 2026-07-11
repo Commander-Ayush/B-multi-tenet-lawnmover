@@ -37,15 +37,6 @@ public class ServiceCatalogService {
         return fetchOrSeed(tenantResolver.resolve(origin), "addon").stream().map(ServiceDto::from).toList();
     }
 
-    /**
-     * A brand-new tenant has zero rows in service_offerings. Rather than
-     * showing an empty site (or, like the old Thymeleaf version, showing
-     * transient never-saved demo objects with no real id), the first public
-     * request for an empty category persists a starter catalog — so the
-     * booking form always has real, bookable serviceOfferingIds from the
-     * very first visitor onward. If an owner deletes everything in a
-     * category later, the next visitor re-seeds it the same way.
-     */
     private List<ServiceOffering> fetchOrSeed(Company company, String type) {
         List<ServiceOffering> existing = serviceRepo.findByCompanyIdAndTypeOrderBySortOrder(company.getId(), type);
         if (!existing.isEmpty()) return existing;

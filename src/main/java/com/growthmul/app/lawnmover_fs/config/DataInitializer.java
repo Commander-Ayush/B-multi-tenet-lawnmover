@@ -39,6 +39,7 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        System.out.println((passwordEncoder.encode(DEV_ADMIN_PASSWORD)));
         if (companyRepo.count() > 0) return; // real data already exists — never touch it
 
         Company demo = new Company();
