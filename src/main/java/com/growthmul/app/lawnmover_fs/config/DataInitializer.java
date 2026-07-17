@@ -10,22 +10,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * Local-dev convenience only. Runs once on startup; does nothing at all if
- * any Company row already exists (so this never touches a real database
- * with real client data — it only fires against a genuinely empty one,
- * e.g. the first time you run this app on your machine).
- *
- * Seeds ONE demo company + admin login so the storefront/admin-panel work
- * immediately against localhost without any manual SQL.
- *
- * IMPORTANT: the seeded domain is "localhost:5500" — adjust to match
- * whatever port you actually serve storefront/ on (e.g. VS Code Live
- * Server, `python3 -m http.server`). The browser's Origin header includes
- * the port, and the domain column has to match it exactly. Opening the
- * HTML files directly via file:// won't work — Origin is "null" in that
- * case, not a real domain. Serve them over a local HTTP server.
- */
+
 @Component
 public class DataInitializer implements ApplicationRunner {
 

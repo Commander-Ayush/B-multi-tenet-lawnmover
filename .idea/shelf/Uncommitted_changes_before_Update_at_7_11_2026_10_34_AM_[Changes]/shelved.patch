@@ -1,0 +1,462 @@
+Index: BACKEND_CHANGES.md
+===================================================================
+diff --git a/BACKEND_CHANGES.md b/BACKEND_CHANGES.md
+deleted file mode 100644
+--- a/BACKEND_CHANGES.md	(revision f7d2d4463266aebc4dfcb6c70eb7006080a80746)
++++ /dev/null	(revision f7d2d4463266aebc4dfcb6c70eb7006080a80746)
+@@ -1,140 +0,0 @@
+-# Backend rebuild — Thymeleaf → REST API
+-
+-Full rewrite to match `CONTRACT.md` from the frontend phase. Every endpoint
+-in that contract is implemented. This doc covers what changed and why,
+-what I could and couldn't verify, and what you need to do before running it.
+-
+-## ⚠️ Read this first: I could not compile this
+-
+-This sandbox has no `javac`/Maven/internet access to Maven Central — I
+-could not run `mvn compile` or anything that touches real dependency jars
+-(Spring, JJWT, Hibernate). What I *did* do to compensate:
+-
+-- Manually cross-referenced every repository method call, entity
+-  getter/setter, and import against the actual source files in your repo
+-  (not from memory — I re-cloned and re-read the real files throughout).
+-- Checked brace/parenthesis balance and import correctness across every
+-  file with a script.
+-- Pulled the new price-parsing regex out and verified it standalone
+-  against 11 real cases (all your existing price string formats) using
+-  Python's equivalent regex engine, since I had no JVM to test the real
+-  Java version.
+-- Kept the JWT code to the documented `jjwt 0.12.x` fluent API exactly as
+-  published, and removed an `@NonNull` annotation I'd added that wasn't
+-  load-bearing, specifically to avoid risking a package that may have
+-  moved in this very new Spring Boot version (4.1.0).
+-
+-**Please run `mvn clean compile` (or just open it in your IDE) as the very
+-first step** before anything else. If something doesn't compile, it's
+-most likely a tiny thing (an import path that shifted in this Spring Boot
+-version) — tell me the error and I'll fix it immediately.
+-
+-## What changed, file by file
+-
+-### Removed (fully replaced, not needed anymore)
+-- `controller/Index.java`, `controller/BookingController.java` (old),
+-  `controller/AdminController.java` (old) — Thymeleaf page controllers
+-- `security/AdminSecurity.java` — session/form-login security config
+-- `config/TenantContext.java` — the per-process `app.tenant.id` resolver
+-- `src/main/resources/templates/**` and `src/main/resources/static/**` —
+-  provably orphaned the moment the controllers returning those view names
+-  were gone. Your real frontend lives outside this repo now.
+-
+-### Entities changed
+-- **`Company`** — added `domain` (unique). This is what `PublicTenantResolver`
+-  matches against the `Origin` header.
+-- **`AdminUser`** — new. `email` (unique, login identifier), `passwordHash`
+-  (BCrypt), `company` (FK). Replaces the old single hardcoded
+-  `InMemoryUserDetailsManager` admin entirely.
+-- **`BookingRequest`** — `service` (free-text code) → `serviceOffering`
+-  (real FK, nullable). This is the fix for the old revenue-estimation hack:
+-  bookings now reference a real `ServiceOffering`, so the dashboard can read
+-  its *actual* price instead of guessing from a lookup table.
+-
+-`AddOn.java` / `PricingPlan.java` were already dead, unused, non-`@Entity`
+-leftover files before I touched anything — left alone, harmless.
+-
+-### New: full service/controller/security layers
+-- **Public** (`CompanyController`, `ServiceCatalogController`, `BookingController`):
+-  resolve tenant via `PublicTenantResolver` (Origin header → `Company.domain`).
+-- **Admin** (`AuthController`, `AdminDashboardController`, `AdminBookingController`,
+-  `AdminServiceController`, `AdminAccountController`): resolve tenant via
+-  `CurrentAdmin.companyId()`, which reads the JWT-derived security context —
+-  never from anything the client sends.
+-- **`JwtService`** / **`JwtAuthFilter`** / **`SecurityConfig`**: stateless JWT
+-  auth, CORS enabled (wildcard origin, no credentials — see code comments for
+-  why that's safe here), CSRF disabled (no cookies exist to forge against).
+-- **`DashboardAnalyticsService`**: same proven logic from the Thymeleaf phase,
+-  now computing real revenue via a `$NN` regex against the linked
+-  `ServiceOffering.price` instead of the old guessed price map.
+-- **`ServiceCatalogService`**: public reads now *persist* a starter catalog
+-  the first time any category (services/plans/addons) is empty for a
+-  business — so a booking's `serviceOfferingId` always has a real row to
+-  point at, even for a business that hasn't customized anything yet. If an
+-  owner later deletes everything in a category, the next visitor re-seeds
+-  it the same way (a deliberate tradeoff — see the code comment if you ever
+-  want a business to be able to keep a category permanently empty).
+-
+-### `pom.xml`
+-Added `jjwt-api`, `jjwt-impl`, `jjwt-jackson` (0.12.6). Nothing removed —
+-the now-unused `thymeleaf` / `thymeleaf-test` / `thymeleaf-extras-springsecurity6`
+-dependencies are still there (harmless dead weight); I left them rather than
+-risk removing something without being able to recompile. Delete them
+-yourself whenever you want a fully clean dependency tree.
+-
+-### `application.properties`
+-- Removed `app.tenant.id`, `app.admin.username`, `app.admin.password` —
+-  meaningless now that one instance serves every business.
+-- Added `app.jwt.secret` (required, no default — set `JWT_SECRET` env var,
+-  ≥32 chars) and `app.jwt.expiration-ms` (optional, defaults to 24h).
+-- Lowered `hikari.maximum-pool-size` 10 → 3, per what we discussed about
+-  one shared instance serving multiple tenants — adjust up only if you
+-  actually see pool exhaustion under real load.
+-- `ddl-auto=create-drop` is **still there, unchanged** — still fine for now
+-  with no real client data, still the thing to fix (→ `validate` + real
+-  migrations) before this matters in production. Flagging it again since
+-  the schema itself just changed meaningfully.
+-
+-### New files
+-- **`.env.example`** (`src/main/resources/`) — matches your existing
+-  gitignored `.env` convention, documents every required env var.
+-- **`onboarding-template.sql`** (repo root) — matches your existing
+-  gitignored `onboarding-template.sql` convention. Two `INSERT`s (company +
+-  admin user) with a **real, working BCrypt hash** for a temporary password
+-  (`ChangeMe123!`) — not a placeholder, I actually generated it. New client
+-  logs in with that, changes it immediately via the change-password endpoint.
+-- **`config/DataInitializer.java`** — seeds one demo company + admin login
+-  on startup, but *only* if the `company` table is completely empty, so it
+-  can never touch a database that already has real data. Gives you a
+-  working local setup with zero manual SQL.
+-
+-## Running this locally
+-
+-1. Set env vars (see `.env.example`): `DATABASE_URL`, `DATABASE_USERNAME`,
+-   `DATABASE_PASSWORD`, `JWT_SECRET` (`openssl rand -base64 48`).
+-2. Run the app. First boot seeds the demo company + admin (see console
+-   output for the exact credentials) — only happens once, only on an
+-   empty database.
+-3. **Serve the storefront over a real local HTTP server, not by opening
+-   the HTML file directly.** `file://` origins send `Origin: null`, which
+-   will never match a real domain. The seeded demo company's domain is
+-   `localhost:5500` — either serve the storefront on that exact port
+-   (`python3 -m http.server 5500` from inside `storefront/`), or change
+-   `DEV_DOMAIN` in `DataInitializer.java` to match whatever port you
+-   actually use.
+-4. Admin panel: log in with the seeded email/password from the console output.
+-
+-## Known gaps / things I deliberately didn't build
+-
+-- **No endpoint to edit company profile info** (name, city, phone, stats)
+-  after onboarding — still a direct-DB edit via the onboarding template.
+-  Neither the old Thymeleaf admin panel nor the new fetch-based one ever had
+-  a "company settings" screen, so I didn't invent a backend endpoint with no
+-  frontend to call it. Easy to add (a `PUT /admin/company` + a settings page)
+-  if you want it — say the word.
+-- **Price parsing assumes a `$NN` substring somewhere in the price text.**
+-  An admin entering "Call for a quote" with no dollar sign contributes $0 to
+-  revenue calculations rather than erroring — silent-but-safe, worth knowing.
+-- **CORS is wide open (`*`)** by design, explained in `SecurityConfig`'s
+-  comments — revisit only if you start relying on cookies anywhere, which
+-  nothing here currently does.
+Index: onboarding-template.sql
+===================================================================
+diff --git a/onboarding-template.sql b/onboarding-template.sql
+deleted file mode 100644
+--- a/onboarding-template.sql	(revision f7d2d4463266aebc4dfcb6c70eb7006080a80746)
++++ /dev/null	(revision f7d2d4463266aebc4dfcb6c70eb7006080a80746)
+@@ -1,307 +0,0 @@
+--- ============================================================
+--- Onboarding template for a new client.
+--- Copy this file, fill in the placeholders, run it against the database.
+--- ============================================================
+-
+--- 1. Create the business.
+---    domain: lowercase, NO "www.", NO "https://" — must exactly match
+---    what their Hostinger site's Origin header will send (the storefront
+---    is identified by this column, not by anything it sends itself).
+-
+---- Values to be uncommented ---
+-
+--- INSERT INTO company (name, city, founded_year, yards_served, years_experience, phone, email, domain)
+--- VALUES (
+---   'CLIENT BUSINESS NAME',
+---   'CLIENT CITY',
+---   2024,
+---   0,
+---   1,
+---   1234567890,                   -- digits only, no formatting
+---   'owner@clientbusiness.com',
+---   'clientbusiness.com'
+--- );
+-
+-    --- values to be uncommented ---
+-
+--- 2. Create their admin login.
+---    The hash below is bcrypt("ChangeMe123!") — a real, working hash, not a
+---    placeholder. Give the client this email + "ChangeMe123!" and tell them
+---    to change it immediately via the admin panel's change-password screen.
+---    Do not edit the hash string itself.
+-
+--- Values to be uncommented --
+-
+--- INSERT INTO admin_users (email, password_hash, company_id)
+--- VALUES (
+---   'owner@clientbusiness.com',  -- must match what you hand them to log in with
+---   '$2b$10$BODrV.jJcaZ1LV4izj0Up.NSbCBYj2O3Ic10V4nOeQbFnUa8yEFt.',
+---   (SELECT id FROM company WHERE domain = 'clientbusiness.com')
+--- );
+-
+-    --values to be uncommented--
+-
+--- That's it — two inserts, and the business is live:
+---   - Visiting their storefront for the first time auto-seeds a starter
+---     catalog (services/plans/addons) with sensible defaults, so the site
+---     never looks empty on day one — see ServiceCatalogService.fetchOrSeed.
+---     They can edit/replace everything from the admin panel afterward.
+---   - Their admin login works immediately at the temporary password above.
+---
+--- Known gap: there's currently no admin UI (or endpoint) to edit the
+--- company's own profile (name, city, phone, stats) after onboarding —
+--- that's still a direct-DB edit for now, since the original frontend never
+--- had a "company settings" screen either. Worth adding a small
+--- PUT /admin/company endpoint + settings page if this comes up often.
+-
+-
+--- ============================================================
+--- ONBOARDING: GreenCut Lawn Services, Austin TX
+--- Run this against your database AFTER the app has started once
+--- (so the schema exists). Run top to bottom in order.
+--- ============================================================
+-
+--- ── STEP 1: Company ──────────────────────────────────────────
+-
+-INSERT INTO company (name, city, founded_year, yards_served, years_experience, phone, email, domain)
+-VALUES (
+-           'GreenCut Lawn Services',
+-           'Austin, TX',
+-           2012,
+-           4800,
+-           13,
+-           5122047890,
+-           'owner@greencutaustin.com',
+-           'graphicsauto.in'  -- change to their real domain when going live
+-       );
+-
+--- ── STEP 2: Admin Login ───────────────────────────────────────
+--- Password is: ChangeMe123!  (tell client to change it immediately)
+-INSERT INTO admin_users (email, password_hash, company_id)
+-VALUES (
+-           'owner@greencutaustin.com',
+-           '$2a$10$RQHhhX18peLISJc43dJ6.OTpTa6lXp7hwPZorj7tMl0xVI5UCgMy.',
+-           (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-    );
+-
+--- ── STEP 3: Individual Services ───────────────────────────────
+-INSERT INTO service_offerings (icon, name, description, price, type, sort_order, featured, company_id)
+-VALUES
+-    (
+-        '✂️',
+-        'Basic Mow & Edge',
+-        'Standard lawn mowing with clean edging along driveways, walkways, and flower beds. Clippings blown off all hard surfaces.',
+-        '$45 / visit',
+-        'service', 1, false,
+-        (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-    ),
+-(
+-  '🌿',
+-  'Mow, Edge & Blow',
+-  'Everything in Basic plus a full blowdown of your patio, driveway and sidewalks. Your yard looks showroom-clean every time.',
+-  '$65 / visit',
+-  'service', 2, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '🌱',
+-  'Fertilize & Weed Control',
+-  'Slow-release fertilizer application plus pre-emergent weed control treatment. Keeps your lawn thick and weed-free all season.',
+-  '$89 / treatment',
+-  'service', 3, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '🍂',
+-  'Leaf & Debris Cleanup',
+-  'Full removal of leaves, twigs, and yard debris. Bagged and hauled away — no mess left behind.',
+-  '$95 / session',
+-  'service', 4, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '💧',
+-  'Sprinkler System Check',
+-  'Full inspection of all sprinkler heads, zones, and timers. Adjustments included. Keep your irrigation running efficiently.',
+-  '$79 / visit',
+-  'service', 5, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '🪨',
+-  'Aeration & Overseeding',
+-  'Core aeration breaks up compacted soil, followed by premium grass seed blend. Results in a thicker, healthier lawn within weeks.',
+-  '$149 / session',
+-  'service', 6, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-);
+-
+--- ── STEP 4: Monthly Plans ──────────────────────────────────────
+-INSERT INTO service_offerings (icon, name, description, price, type, sort_order, featured, company_id)
+-VALUES
+-    (
+-        '',
+-        'Sprout Plan',
+-        'Billed monthly · Cancel anytime',
+-        '$99 / month',
+-        'plan', 1, false,
+-        (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-    ),
+-(
+-  '',
+-  'Bloom Plan',
+-  'Billed monthly · Cancel anytime',
+-  '$179 / month',
+-  'plan', 2, true,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '',
+-  'Harvest Plan',
+-  'Billed monthly · Cancel anytime',
+-  '$279 / month',
+-  'plan', 3, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-);
+-
+--- ── Plan features (Sprout) ─────────────────────────────────────
+-INSERT INTO plan_features (service_id, feature)
+-VALUES
+-    ((SELECT id FROM service_offerings WHERE name = 'Sprout Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), '2x Basic Mow & Edge visits per month'),
+-((SELECT id FROM service_offerings WHERE name = 'Sprout Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Email support'),
+-((SELECT id FROM service_offerings WHERE name = 'Sprout Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Booking within 5 business days'),
+-((SELECT id FROM service_offerings WHERE name = 'Sprout Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Monthly lawn condition report');
+-
+--- ── Plan features (Bloom) ──────────────────────────────────────
+-INSERT INTO plan_features (service_id, feature)
+-VALUES
+-    ((SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), '4x Mow, Edge & Blow visits per month'),
+-((SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), '1x Fertilize & Weed Control per month'),
+-((SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Priority scheduling within 48 hours'),
+-((SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Phone & email support'),
+-((SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Bi-weekly lawn health report');
+-
+--- ── Plan features (Harvest) ────────────────────────────────────
+-INSERT INTO plan_features (service_id, feature)
+-VALUES
+-    ((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Unlimited Mow, Edge & Blow visits'),
+-((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Monthly Fertilize & Weed Control'),
+-((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Quarterly Aeration & Overseeding'),
+-((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Same-day emergency service'),
+-((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Dedicated account manager'),
+-((SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')), 'Weekly detailed lawn report');
+-
+--- ── STEP 5: Add-Ons ───────────────────────────────────────────
+-INSERT INTO service_offerings (icon, name, description, price, type, sort_order, featured, company_id)
+-VALUES
+-    (
+-        '🌸',
+-        'Flower Bed Weeding',
+-        'Hand-removal of all weeds from flower beds and mulched areas. Beds look clean and maintained without you lifting a finger.',
+-        'From $35 / visit',
+-        'addon', 1, false,
+-        (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-    ),
+-(
+-  '🪵',
+-  'Fresh Mulch Installation',
+-  'Premium hardwood mulch spread across all beds to suppress weeds, retain moisture, and give your yard that fresh, finished look.',
+-  'From $75 / yard',
+-  'addon', 2, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '🌳',
+-  'Hedge & Shrub Trimming',
+-  'Precise shaping and trimming of hedges, bushes, and ornamental shrubs. Clean lines that make your whole property look sharp.',
+-  'From $55 / session',
+-  'addon', 3, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  '🧹',
+-  'Gutter Cleaning',
+-  'Clear out leaves, debris and blockages from all gutters and downspouts. Prevents water damage before it becomes a costly problem.',
+-  'From $99 / visit',
+-  'addon', 4, false,
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-);
+-
+--- ── STEP 6: Dummy Bookings (so dashboard has data to show) ────
+-INSERT INTO booking_requests (first_name, last_name, phone, email, address, preferred_date, notes, completed, submitted_at, service_offering_id, company_id)
+-VALUES
+-    (
+-        'Sarah', 'Johnson', '5124441234', 'sarah.j@gmail.com',
+-        '1204 Barton Hills Dr, Austin, TX 78704',
+-        '2025-06-15', 'Gate code is 1234. Dog in backyard, please keep gate closed.',
+-        true, '2025-06-10 09:23:00',
+-        (SELECT id FROM service_offerings WHERE name = 'Bloom Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')),
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Marcus', 'Williams', '5129876543', 'marcusw@outlook.com',
+-  '3302 Speedway, Austin, TX 78705',
+-  '2025-06-18', 'Front yard only. Back yard access blocked by construction.',
+-  true, '2025-06-12 14:05:00',
+-  (SELECT id FROM service_offerings WHERE name = 'Basic Mow & Edge' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')),
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Linda', 'Martinez', '5121230987', 'lmartinez@yahoo.com',
+-  '512 W 6th St, Austin, TX 78701',
+-  '2025-06-22', NULL,
+-  true, '2025-06-18 10:44:00',
+-  (SELECT id FROM service_offerings WHERE name = 'Harvest Plan' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')),
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Derek', 'Thompson', '5125554321', 'dthompson@gmail.com',
+-  '7890 Shoal Creek Blvd, Austin, TX 78757',
+-  '2025-07-02', 'Please text when 30 minutes away.',
+-  false, '2025-06-28 08:15:00',
+-  (SELECT id FROM service_offerings WHERE name = 'Mow, Edge & Blow' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')),
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Angela', 'Brooks', '5127778899', 'angela.brooks@icloud.com',
+-  '2211 Exposition Blvd, Austin, TX 78703',
+-  '2025-07-05', 'Interested in upgrading to the Harvest Plan after this visit.',
+-  false, '2025-07-01 16:30:00',
+-  (SELECT id FROM service_offerings WHERE name = 'Aeration & Overseeding' AND company_id = (SELECT id FROM company WHERE domain = 'graphicsauto.in')),
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-);
+-
+--- ── STEP 7: Dummy Reviews ──────────────────────────────────────
+-INSERT INTO reviews (reviewer_name, reviewer_city, stars, text, approved, submitted_at, company_id)
+-VALUES
+-    (
+-        'Sarah Johnson', 'Austin, TX', 5,
+-        'GreenCut completely transformed my front yard. The crew is always on time, incredibly professional, and the lawn looks stunning every single week. Best decision I made for my home!',
+-        true, '2025-06-16 11:20:00',
+-        (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-    ),
+-(
+-  'Marcus Williams', 'Austin, TX', 5,
+-  'Signed up for the Basic plan just to try it out and honestly I might upgrade. They did a better job in 45 minutes than I could do in 3 hours. Super impressed.',
+-  true, '2025-06-19 09:45:00',
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Linda Martinez', 'Austin, TX', 5,
+-  'Worth every penny of the Harvest Plan. Having someone just handle it every week without me thinking about it is priceless. My neighbors keep asking who does my lawn!',
+-  true, '2025-06-23 14:10:00',
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Tom Gallagher', 'Cedar Park, TX', 4,
+-  'Really reliable service. They show up when they say they will and always clean up after themselves. Would love a same-day booking option but overall very happy.',
+-  true, '2025-06-25 08:30:00',
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-),
+-(
+-  'Angela Brooks', 'Austin, TX', 5,
+-  'Just had the aeration and overseeding done — the difference is already visible after two weeks. These guys actually know what they are doing. Highly recommend!',
+-  false, '2025-07-02 17:05:00',
+-  -- approved = false intentionally: tests your admin approval queue
+-  (SELECT id FROM company WHERE domain = 'graphicsauto.in')
+-);
+\ No newline at end of file
