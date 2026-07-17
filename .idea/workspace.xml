@@ -5,10 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e410d932-85c6-4f1c-953b-170945890d0d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/AdminProductController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/ProductController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/service/ProductService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/OrderController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/OrderController.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -122,7 +120,7 @@
       <workItem from="1783644382231" duration="5628000" />
       <workItem from="1783699157113" duration="6350000" />
       <workItem from="1783745091754" duration="340000" />
-      <workItem from="1784276946081" duration="7974000" />
+      <workItem from="1784276946081" duration="10710000" />
     </task>
     <servers />
   </component>
