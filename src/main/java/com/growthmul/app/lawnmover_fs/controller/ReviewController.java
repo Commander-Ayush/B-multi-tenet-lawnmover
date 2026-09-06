@@ -27,6 +27,7 @@ public class ReviewController {
     @ResponseStatus(HttpStatus.CREATED)
     public void submit(@RequestHeader(value = "Origin", required = false) String origin,
                        @RequestBody ReviewSubmitRequest req) {
+        System.out.println("Reviews URL has been hit");
         reviewService.submitReview(origin, req);
     }
 }
