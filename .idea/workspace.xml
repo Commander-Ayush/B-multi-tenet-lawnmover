@@ -5,11 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e410d932-85c6-4f1c-953b-170945890d0d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/BookingController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/controller/BookingController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/entity/Company.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/entity/Company.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/repository/BookingRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/growthmul/app/lawnmover_fs/repository/BookingRepository.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -148,7 +144,7 @@
       <workItem from="1786865870052" duration="706000" />
       <workItem from="1786908811632" duration="704000" />
       <workItem from="1786944408787" duration="23000" />
-      <workItem from="1788759582726" duration="3309000" />
+      <workItem from="1788759582726" duration="4332000" />
     </task>
     <servers />
   </component>
